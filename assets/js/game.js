@@ -18,7 +18,8 @@ var canvas = document.getElementById("canvas"),
         speed: 3,
         velX: 0,
         velY: 0,
-        jumping: false
+        jumping: false,
+        grounded: false
     },
     keys = [];
 friction = 0.8,
@@ -48,6 +49,31 @@ boxes.push({
     height: height
 });
 
+boxes.push({
+    x: 120,
+    y: 10,
+    width: 80,
+    height: 80
+});
+boxes.push({
+    x: 170,
+    y: 50,
+    width: 80,
+    height: 80
+});
+boxes.push({
+    x: 220,
+    y: 100,
+    width: 80,
+    height: 80
+});
+boxes.push({
+    x: 270,
+    y: 150,
+    width: 40,
+    height: 40
+});
+
 
 canvas.width = width;
 canvas.height = height;
@@ -56,12 +82,14 @@ function update() {
     // Check keys
     if (keys[38] || keys[32]) {
         // Up arrow or space
-        if (!player.jumping) {
+        if (!player.jumping && player.grounded) {
             player.jumping = true;
+            player.grounded = false;
             player.velY = -player.speed * 2;
         }
 
     }
+
     if (keys[39]) {
         // Right arrow
         if (player.velX < player.speed) {
@@ -87,30 +115,37 @@ function update() {
     player.x += player.velX;
     player.y += player.velY;
 
-    if (player.x >= width - player.width) {
-        player.x = width - player.width;
-        // Adds 'elevator' wall jump on +x
-        player.jumping = false;
-    } else if (player.x <= 0) {
-        player.x = 0;
-        // Adds 'elevetor' wall jump on -x
-        player.jumping = false;
-    }
-
-    if (player.y >= height - player.height) {
-        player.y = height - player.height;
-        player.jumping = false;
-    }
 
     // Draw a small red box / our Player
     ctx.clearRect(0, 0, width, height);
 
     ctx.fillStyle = "black";
     ctx.beginPath();
+    player.grounded = false;
 
     for (var i = 0; i < boxes.length; i++) {
         ctx.rect(boxes[i].x, boxes[i].y, boxes[i].width, boxes[i].height);
+        var dir = colCheck(player, boxes[i]);
+
+        if (dir === "l" || dir === "r") {
+            player.velX = 0;
+            player.jumping = false;
+        } else if (dir === "b") {
+            player.grounded = true;
+            player.jumping = false;
+        } else if (dir === "t") {
+            player.velY *= -1;
+        }
     }
+
+    if (player.grounded) {
+        player.velY = 0;
+    }
+
+    player.x += player.velX;
+    player.y += player.velY;
+
+
 
     ctx.fill();
 
@@ -120,6 +155,41 @@ function update() {
     requestAnimationFrame(update);
 }
 
+// Collision detection
+function colCheck(shapeA, shapeB) {
+    // Get the vectors to check against
+    var vX = (shapeA.x + (shapeA.width / 2)) - (shapeB.x + (shapeB.width / 2)),
+        vY = (shapeA.y + (shapeA.height / 2)) - (shapeB.y + (shapeB.height / 2)),
+        // Add the half widths & half heights of the objects
+        hWidths = (shapeA.width / 2) + (shapeB.width / 2),
+        hHeights = (shapeA.height / 2) + (shapeB.height / 2),
+        colDir = null;
+
+    // If the x & y vector are less than the half width or half height,
+    // then we must be inside the object, causing a collision
+    if (Math.abs(vX) < hWidths && Math.abs(vY) < hHeights) {
+        var oX = hWidths - Math.abs(vX),
+            oY = hHeights - Math.abs(vY);
+        if (oX >= oY) {
+            if (vY > 0) {
+                colDir = "t";
+                shapeA.y += oY;
+            } else {
+                colDir = "b";
+                shapeA.y -= oY;
+            }
+        } else {
+            if (vX > 0) {
+                colDir = "l";
+                shapeA.x += oX;
+            } else {
+                colDir = "r";
+                shapeA.x -= oX;
+            }
+        }
+    }
+    return colDir;
+}
 
 document.body.addEventListener("keydown", function (e) {
     keys[e.keyCode] = true;
